@@ -36,7 +36,7 @@ public class RestTemplateConfig {
                 // Interceptor para logging
                 .interceptors(loggingInterceptor())
 
-                // Manejo de errores personalizado (opcional)
+                // Manejo de errores personalizado
                 .build();
     }
 

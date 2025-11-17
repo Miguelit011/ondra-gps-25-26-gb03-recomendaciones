@@ -1,16 +1,10 @@
-# === MAVEN ===
 HELP.md
 target/
+!.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
 
-# Maven Wrapper (mantener estos archivos en el repo)
-!.mvn/wrapper/maven-wrapper.jar
-!mvnw
-!mvnw.cmd
-
-# === IDEs ===
-### STS / Eclipse ###
+### STS ###
 .apt_generated
 .classpath
 .factorypath
@@ -38,17 +32,13 @@ build/
 ### VS Code ###
 .vscode/
 
-# === LOGS / TEMP ===
+### MacOS ###
+.DS_Store
+
+### Application Properties with secrets ###
+application-local.properties
+application-prod.properties
+
+### Logs ###
 *.log
 logs/
-tmp/
-*.tmp
-
-# === CONFIGURACIONES SENSIBLES ===
-.env
-.env.*
-application-local.properties
-firebase-credentials.json
-
-# === MACOS ===
-.DS_Store
