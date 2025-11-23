@@ -18,10 +18,10 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Servicio de lógica de negocio para gestión de preferencias de géneros.
+ * Servicio de gestión de preferencias de géneros musicales.
  *
- * <p>Gestiona las preferencias de géneros de los usuarios, incluyendo validación
- * de existencia de géneros mediante comunicación con el microservicio de contenidos.
+ * <p>Gestiona las preferencias de géneros de los usuarios, validando existencia
+ * mediante comunicación con el microservicio de contenidos.</p>
  */
 @Slf4j
 @Service
@@ -34,10 +34,10 @@ public class PreferenciasService {
     private ContenidosClient contenidosClient;
 
     /**
-     * Obtiene las preferencias de géneros de un usuario con nombres enriquecidos.
+     * Obtiene las preferencias de géneros de un usuario.
      *
      * @param idUsuario ID del usuario
-     * @return Lista de preferencias con IDs y nombres de géneros
+     * @return lista de preferencias con IDs y nombres de géneros
      */
     public List<PreferenciaGeneroDTO> obtenerPreferencias(Long idUsuario) {
         log.debug("📋 Obteniendo preferencias del usuario {}", idUsuario);
@@ -57,19 +57,18 @@ public class PreferenciasService {
                     .build());
         }
 
-        log.debug("✅ Obtenidas {} preferencias para usuario {}", resultado.size(), idUsuario);
+        log.debug("✅ {} preferencias obtenidas", resultado.size());
         return resultado;
     }
 
     /**
      * Agrega nuevas preferencias de géneros a un usuario.
      *
-     * <p>Valida que los géneros existan en el microservicio de contenidos,
-     * elimina duplicados y gestiona géneros ya existentes.
+     * <p>Valida existencia de géneros, elimina duplicados y gestiona géneros ya existentes.</p>
      *
      * @param idUsuario ID del usuario
      * @param dto DTO con los IDs de géneros a agregar
-     * @return Respuesta con estadísticas y preferencias actualizadas
+     * @return respuesta con estadísticas y preferencias actualizadas
      * @throws InvalidDataException si la lista de géneros está vacía
      * @throws InvalidGenreException si algún género no existe
      */
@@ -83,7 +82,6 @@ public class PreferenciasService {
 
         Set<Long> idsGenerosUnicos = new HashSet<>(dto.getIdsGeneros());
 
-        // Validar existencia de géneros
         for (Long idGenero : idsGenerosUnicos) {
             if (!contenidosClient.existeGenero(idGenero)) {
                 throw new InvalidGenreException("El género con ID " + idGenero + " no existe");
@@ -93,7 +91,6 @@ public class PreferenciasService {
         int generosAgregados = 0;
         int generosDuplicados = 0;
 
-        // Agregar géneros no existentes
         for (Long idGenero : idsGenerosUnicos) {
             boolean yaExiste = preferenciaGeneroRepository.existsByIdUsuarioAndIdGenero(idUsuario, idGenero);
 
@@ -109,7 +106,7 @@ public class PreferenciasService {
             }
         }
 
-        log.info("✅ Preferencias agregadas - Nuevos: {}, Duplicados: {}", generosAgregados, generosDuplicados);
+        log.info("✅ Nuevos: {}, Duplicados: {}", generosAgregados, generosDuplicados);
 
         List<PreferenciaGeneroDTO> preferenciasActualizadas = obtenerPreferencias(idUsuario);
 
@@ -122,7 +119,7 @@ public class PreferenciasService {
     }
 
     /**
-     * Elimina una preferencia de género específica de un usuario.
+     * Elimina una preferencia de género específica.
      *
      * @param idUsuario ID del usuario
      * @param idGenero ID del género a eliminar
@@ -130,7 +127,7 @@ public class PreferenciasService {
      */
     @Transactional
     public void eliminarPreferencia(Long idUsuario, Long idGenero) {
-        log.info("🗑️ Eliminando preferencia género {} del usuario {}", idGenero, idUsuario);
+        log.info("🗑️ Eliminando género {} del usuario {}", idGenero, idUsuario);
 
         PreferenciaGenero preferencia = preferenciaGeneroRepository
                 .findByIdUsuarioAndIdGenero(idUsuario, idGenero)
@@ -139,11 +136,11 @@ public class PreferenciasService {
                 ));
 
         preferenciaGeneroRepository.delete(preferencia);
-        log.info("✅ Preferencia eliminada correctamente");
+        log.info("✅ Preferencia eliminada");
     }
 
     /**
-     * Elimina todas las preferencias de géneros de un usuario.
+     * Elimina todas las preferencias de un usuario.
      *
      * @param idUsuario ID del usuario
      */
@@ -151,31 +148,30 @@ public class PreferenciasService {
     public void eliminarTodasPreferencias(Long idUsuario) {
         log.info("🗑️ Eliminando todas las preferencias del usuario {}", idUsuario);
         preferenciaGeneroRepository.deleteByIdUsuario(idUsuario);
-        log.info("✅ Todas las preferencias eliminadas");
+        log.info("✅ Preferencias eliminadas");
     }
 
     /**
      * Verifica que el usuario autenticado sea propietario del recurso.
      *
-     * <p>Permite acceso sin validación si es una petición service-to-service.
+     * <p>Permite acceso sin validación si es petición service-to-service.</p>
      *
-     * @param idUsuarioAutenticado ID del usuario autenticado (del JWT)
+     * @param idUsuarioAutenticado ID del usuario autenticado
      * @param idUsuario ID del usuario del recurso
      * @param isServiceRequest true si es petición entre servicios
      * @throws ForbiddenAccessException si no es el propietario
      */
     public void verificarPropietario(Long idUsuarioAutenticado, Long idUsuario, boolean isServiceRequest) {
         if (isServiceRequest) {
-            log.debug("🔓 Acceso permitido: petición service-to-service");
+            log.debug("🔓 Acceso service-to-service");
             return;
         }
 
         if (idUsuarioAutenticado == null || !idUsuarioAutenticado.equals(idUsuario)) {
-            log.warn("🚫 Acceso denegado: usuario {} intentó modificar recursos de {}",
-                    idUsuarioAutenticado, idUsuario);
+            log.warn("🚫 Usuario {} intentó modificar recursos de {}", idUsuarioAutenticado, idUsuario);
             throw new ForbiddenAccessException("No tienes permiso para modificar las preferencias de otro usuario");
         }
 
-        log.debug("🔓 Acceso permitido: usuario es propietario");
+        log.debug("🔓 Usuario es propietario");
     }
 }

@@ -1,8 +1,11 @@
 package com.ondra.recomendaciones.security;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.UnsupportedJwtException;
+import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SignatureException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -10,88 +13,123 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.lang.NonNull;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import javax.crypto.SecretKey;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * Filtro de autenticación JWT para validación de usuarios.
+ * Filtro de autenticación JWT para validación de tokens de acceso.
  *
- * <p>Valida tokens JWT generados por el microservicio de Usuarios y establece
- * la autenticación en el contexto de Spring Security. Se ejecuta después del
- * ServiceTokenFilter en la cadena de filtros.
+ * <p>Valida tokens JWT del header Authorization y establece la autenticación
+ * en el contexto de seguridad. Se ejecuta después de {@link ServiceTokenFilter}
+ * y excluye automáticamente endpoints públicos y peticiones ya autenticadas.</p>
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private final JwtService jwtService;
+    @Value("${jwt.secret}")
+    private String secretKey;
 
     /**
-     * Procesa cada petición HTTP validando el token JWT si está presente.
+     * Determina si el filtro debe omitir la validación para la petición actual.
      *
-     * <p>Flujo de validación:
-     * <ol>
-     *   <li>Extrae el token del header Authorization</li>
-     *   <li>Valida firma y estructura del token</li>
-     *   <li>Extrae userId y email del token</li>
-     *   <li>Establece autenticación en SecurityContext</li>
-     *   <li>Guarda userId y email en request attributes</li>
-     * </ol>
+     * @param request petición HTTP entrante
+     * @return true si el filtro debe omitirse, false en caso contrario
+     */
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getRequestURI();
+
+        if (path.startsWith("/actuator") || path.startsWith("/health")) {
+            return true;
+        }
+
+        if (SecurityContextHolder.getContext().getAuthentication() != null) {
+            log.debug("✅ Petición ya autenticada por ServiceTokenFilter");
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Procesa la petición validando el token JWT y estableciendo la autenticación.
+     * Extrae userId, email, tipoUsuario y artistId (si aplica) del token.
      *
-     * @param request Petición HTTP
-     * @param response Respuesta HTTP
-     * @param filterChain Cadena de filtros
-     * @throws ServletException si ocurre error en el servlet
-     * @throws IOException si ocurre error de I/O
+     * @param request petición HTTP
+     * @param response respuesta HTTP
+     * @param filterChain cadena de filtros
+     * @throws ServletException si ocurre un error de servlet
+     * @throws IOException si ocurre un error de entrada/salida
      */
     @Override
     protected void doFilterInternal(
-            @NonNull HttpServletRequest request,
-            @NonNull HttpServletResponse response,
-            @NonNull FilterChain filterChain
-    ) throws ServletException, IOException {
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain) throws ServletException, IOException {
 
-        final String authHeader = request.getHeader("Authorization");
-
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            filterChain.doFilter(request, response);
-            return;
-        }
+        log.debug("🔍 JwtAuthenticationFilter procesando: {} {}", request.getMethod(), request.getRequestURI());
 
         try {
-            final String jwt = authHeader.substring(7);
+            String token = extractTokenFromRequest(request);
 
-            if (jwtService.isTokenValid(jwt)) {
-                final Long userId = jwtService.extractUserId(jwt);
-                final String email = jwtService.extractEmail(jwt);
+            if (token != null && validateToken(token)) {
+                Claims claims = extractAllClaims(token);
 
-                if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                Long userId = claims.get("userId", Long.class);
+                String email = claims.get("email", String.class);
+                String tipoUsuario = claims.get("tipoUsuario", String.class);
+                Object artistIdObj = claims.get("artistId");
 
-                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                            userId,
-                            null,
-                            Collections.emptyList()
-                    );
-
-                    authToken.setDetails(
-                            new WebAuthenticationDetailsSource().buildDetails(request)
-                    );
-
-                    SecurityContextHolder.getContext().setAuthentication(authToken);
-
-                    request.setAttribute("userId", userId);
-                    request.setAttribute("email", email);
-
-                    log.debug("✅ Usuario {} autenticado correctamente", userId);
+                if (userId == null) {
+                    log.warn("⚠️ Token JWT sin userId");
+                    writeErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED,
+                            "INVALID_TOKEN", "Token no contiene userId");
+                    return;
                 }
+
+                UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(
+                                userId,
+                                null,
+                                Collections.emptyList()
+                        );
+
+                Map<String, Object> additionalDetails = new HashMap<>();
+                additionalDetails.put("userId", userId);
+                additionalDetails.put("email", email);
+                additionalDetails.put("tipoUsuario", tipoUsuario);
+
+                if (artistIdObj != null) {
+                    Long artistId = Long.valueOf(String.valueOf(artistIdObj));
+                    additionalDetails.put("artistId", artistId);
+                    request.setAttribute("artistId", artistId);
+                    log.debug("✅ Usuario {} autenticado (tipo: {}, artistId: {})",
+                            userId, tipoUsuario, artistId);
+                } else {
+                    log.debug("✅ Usuario {} autenticado (tipo: {})", userId, tipoUsuario);
+                }
+
+                authentication.setDetails(additionalDetails);
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+
+                request.setAttribute("userId", userId);
+                request.setAttribute("email", email);
+                request.setAttribute("tipoUsuario", tipoUsuario);
+
+            } else if (token == null) {
+                log.debug("⚠️ No se encontró token JWT en la petición");
             }
 
         } catch (ExpiredJwtException e) {
@@ -121,7 +159,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         } catch (IllegalArgumentException e) {
             log.warn("❌ Token inválido: {}", e.getMessage());
             writeErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED,
-                    "INVALID_TOKEN", e.getMessage());
+                    "INVALID_TOKEN", "Token inválido");
             return;
 
         } catch (Exception e) {
@@ -135,13 +173,65 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     /**
+     * Extrae el token JWT del header Authorization.
+     *
+     * @param request petición HTTP
+     * @return token JWT sin el prefijo Bearer, o null si no existe
+     */
+    private String extractTokenFromRequest(HttpServletRequest request) {
+        String bearerToken = request.getHeader("Authorization");
+        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
+            return bearerToken.substring(7);
+        }
+        return null;
+    }
+
+    /**
+     * Valida la firma y estructura del token JWT.
+     *
+     * @param token token JWT a validar
+     * @return true si el token es válido
+     */
+    private boolean validateToken(String token) {
+        Jwts.parser()
+                .verifyWith(getSigningKey())
+                .build()
+                .parseSignedClaims(token);
+        return true;
+    }
+
+    /**
+     * Extrae todos los claims del token JWT.
+     *
+     * @param token token JWT
+     * @return claims contenidos en el token
+     */
+    private Claims extractAllClaims(String token) {
+        return Jwts.parser()
+                .verifyWith(getSigningKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+    }
+
+    /**
+     * Genera la clave de firma a partir del secreto configurado.
+     *
+     * @return clave secreta para firma HMAC
+     */
+    private SecretKey getSigningKey() {
+        byte[] keyBytes = secretKey.getBytes(StandardCharsets.UTF_8);
+        return Keys.hmacShaKeyFor(keyBytes);
+    }
+
+    /**
      * Escribe una respuesta de error en formato JSON.
      *
-     * @param response Respuesta HTTP
-     * @param status Código de estado HTTP
-     * @param error Código de error
-     * @param message Mensaje de error
-     * @throws IOException si ocurre error al escribir la respuesta
+     * @param response respuesta HTTP
+     * @param status código de estado HTTP
+     * @param error código de error
+     * @param message mensaje descriptivo del error
+     * @throws IOException si ocurre un error al escribir la respuesta
      */
     private void writeErrorResponse(HttpServletResponse response, int status,
                                     String error, String message) throws IOException {

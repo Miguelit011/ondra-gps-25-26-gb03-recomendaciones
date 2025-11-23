@@ -6,10 +6,10 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * DTO simplificado para álbumes recomendados.
+ * DTO para álbumes recomendados.
  *
- * <p>Contiene información básica del álbum. El frontend debe consultar
- * el microservicio de Contenidos para obtener detalles completos.</p>
+ * <p>Contiene información básica del álbum. El cliente debe consultar
+ * el microservicio de contenidos para obtener detalles completos.</p>
  */
 @Data
 @NoArgsConstructor
@@ -17,8 +17,23 @@ import lombok.NoArgsConstructor;
 @Builder
 public class AlbumRecomendadoDTO {
 
+    /**
+     * Identificador único del álbum.
+     */
     private Long idAlbum;
+
+    /**
+     * Título del álbum.
+     */
     private String titulo;
+
+    /**
+     * Identificador del género musical.
+     */
     private Long idGenero;
+
+    /**
+     * Nombre del género musical.
+     */
     private String nombreGenero;
 }

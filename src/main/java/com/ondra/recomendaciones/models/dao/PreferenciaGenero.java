@@ -11,8 +11,8 @@ import java.time.LocalDateTime;
 /**
  * Entidad que representa la preferencia de un usuario por un género musical.
  *
- * <p>Almacena únicamente el ID del género, no la entidad completa, para evitar
- * dependencias directas con el microservicio de géneros.</p>
+ * <p>Almacena únicamente el ID del género para evitar dependencias directas
+ * con el microservicio de contenidos.</p>
  */
 @Entity
 @Table(name = "preferencias_generos",
@@ -23,17 +23,29 @@ import java.time.LocalDateTime;
 @Builder
 public class PreferenciaGenero {
 
+    /**
+     * Identificador único de la preferencia.
+     */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id_preferencia")
     private Long idPreferencia;
 
+    /**
+     * Identificador del usuario propietario de la preferencia.
+     */
     @Column(name = "id_usuario", nullable = false)
     private Long idUsuario;
 
+    /**
+     * Identificador del género musical preferido.
+     */
     @Column(name = "id_genero", nullable = false)
     private Long idGenero;
 
+    /**
+     * Fecha y hora en que se agregó la preferencia.
+     */
     @Column(name = "fecha_agregado", nullable = false)
     private LocalDateTime fechaAgregado;
 

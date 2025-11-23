@@ -10,8 +10,7 @@ import java.util.List;
 /**
  * DTO para la respuesta al agregar preferencias de géneros.
  *
- * <p>Incluye estadísticas sobre la operación (géneros agregados y duplicados)
- * y la lista actualizada de preferencias del usuario.</p>
+ * <p>Incluye estadísticas de la operación y lista actualizada de preferencias.</p>
  */
 @Data
 @NoArgsConstructor
@@ -19,8 +18,23 @@ import java.util.List;
 @Builder
 public class PreferenciasResponseDTO {
 
+    /**
+     * Mensaje descriptivo del resultado.
+     */
     private String mensaje;
+
+    /**
+     * Cantidad de géneros agregados exitosamente.
+     */
     private Integer generosAgregados;
+
+    /**
+     * Cantidad de géneros que ya existían.
+     */
     private Integer generosDuplicados;
+
+    /**
+     * Lista actualizada de preferencias del usuario.
+     */
     private List<PreferenciaGeneroDTO> preferencias;
 }

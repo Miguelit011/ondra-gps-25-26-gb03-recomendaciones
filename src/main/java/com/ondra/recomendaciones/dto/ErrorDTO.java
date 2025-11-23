@@ -8,8 +8,7 @@ import lombok.NoArgsConstructor;
 /**
  * DTO para respuestas de error estandarizadas.
  *
- * <p>Proporciona una estructura uniforme para todos los errores de la API,
- * incluyendo código de estado, mensaje descriptivo y timestamp.</p>
+ * <p>Proporciona una estructura uniforme para errores de la API.</p>
  */
 @Data
 @NoArgsConstructor
@@ -17,8 +16,23 @@ import lombok.NoArgsConstructor;
 @Builder
 public class ErrorDTO {
 
+    /**
+     * Código de error.
+     */
     private String error;
+
+    /**
+     * Mensaje descriptivo del error.
+     */
     private String message;
+
+    /**
+     * Código de estado HTTP.
+     */
     private Integer statusCode;
+
+    /**
+     * Marca de tiempo del error.
+     */
     private String timestamp;
 }
