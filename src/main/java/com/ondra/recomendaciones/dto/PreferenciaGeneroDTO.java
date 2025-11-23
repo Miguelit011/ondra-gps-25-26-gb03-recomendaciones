@@ -7,9 +7,6 @@ import lombok.NoArgsConstructor;
 
 /**
  * DTO para representar una preferencia de género musical.
- *
- * <p>Contiene el ID del género y su nombre para facilitar
- * la visualización en el frontend.</p>
  */
 @Data
 @NoArgsConstructor
@@ -17,6 +14,13 @@ import lombok.NoArgsConstructor;
 @Builder
 public class PreferenciaGeneroDTO {
 
+    /**
+     * Identificador del género musical.
+     */
     private Long idGenero;
+
+    /**
+     * Nombre del género musical.
+     */
     private String nombreGenero;
 }

@@ -19,11 +19,11 @@ import java.io.IOException;
 import java.util.Collections;
 
 /**
- * Filtro de autenticación para peticiones entre microservicios.
+ * Filtro de autenticación para comunicación entre microservicios.
  *
  * <p>Valida un token compartido en el header X-Service-Token para autenticar
- * comunicación service-to-service. Se ejecuta antes del JwtAuthenticationFilter,
- * permitiendo bypass de autenticación JWT de usuario.
+ * peticiones service-to-service. Se ejecuta antes del JwtAuthenticationFilter,
+ * permitiendo bypass de autenticación JWT de usuario.</p>
  */
 @Slf4j
 @Component
@@ -38,12 +38,12 @@ public class ServiceTokenFilter extends OncePerRequestFilter {
     /**
      * Procesa cada petición HTTP validando el token de servicio si está presente.
      *
-     * <p>Si el token es válido, establece autenticación con rol ROLE_SERVICE y
-     * marca la petición como service-to-service. Si es inválido, retorna 401.
+     * <p>Si el token es válido, establece autenticación con rol ROLE_SERVICE.
+     * Si es inválido, retorna 401.</p>
      *
-     * @param request Petición HTTP
-     * @param response Respuesta HTTP
-     * @param filterChain Cadena de filtros
+     * @param request petición HTTP
+     * @param response respuesta HTTP
+     * @param filterChain cadena de filtros
      * @throws ServletException si ocurre error en el servlet
      * @throws IOException si ocurre error de I/O
      */
@@ -75,10 +75,10 @@ public class ServiceTokenFilter extends OncePerRequestFilter {
             SecurityContextHolder.getContext().setAuthentication(authToken);
             request.setAttribute("isServiceRequest", true);
 
-            log.debug("✅ Autenticación service-to-service establecida");
+            log.debug("🔓 Autenticación service-to-service establecida");
 
         } else {
-            log.warn("❌ Token de servicio inválido recibido");
+            log.warn("⚠️ Token de servicio inválido");
             writeErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED,
                     "INVALID_SERVICE_TOKEN", "Token de servicio inválido");
             return;
@@ -90,10 +90,10 @@ public class ServiceTokenFilter extends OncePerRequestFilter {
     /**
      * Escribe una respuesta de error en formato JSON.
      *
-     * @param response Respuesta HTTP
-     * @param status Código de estado HTTP
-     * @param error Código de error
-     * @param message Mensaje de error
+     * @param response respuesta HTTP
+     * @param status código de estado HTTP
+     * @param error código de error
+     * @param message mensaje de error
      * @throws IOException si ocurre error al escribir la respuesta
      */
     private void writeErrorResponse(HttpServletResponse response, int status,

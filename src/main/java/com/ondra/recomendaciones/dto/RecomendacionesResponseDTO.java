@@ -9,9 +9,6 @@ import java.util.List;
 
 /**
  * DTO para la respuesta de recomendaciones personalizadas.
- *
- * <p>Contiene listas de canciones y álbumes recomendados basadas
- * en las preferencias musicales del usuario.</p>
  */
 @Data
 @NoArgsConstructor
@@ -19,8 +16,23 @@ import java.util.List;
 @Builder
 public class RecomendacionesResponseDTO {
 
+    /**
+     * Identificador del usuario.
+     */
     private Long idUsuario;
+
+    /**
+     * Total de recomendaciones generadas.
+     */
     private Integer totalRecomendaciones;
+
+    /**
+     * Lista de canciones recomendadas.
+     */
     private List<CancionRecomendadaDTO> canciones;
+
+    /**
+     * Lista de álbumes recomendados.
+     */
     private List<AlbumRecomendadoDTO> albumes;
 }
