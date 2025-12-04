@@ -8,8 +8,8 @@ import com.ondra.recomendaciones.exceptions.*;
 import com.ondra.recomendaciones.models.dao.PreferenciaGenero;
 import com.ondra.recomendaciones.repositories.PreferenciaGeneroRepository;
 import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -25,13 +25,11 @@ import java.util.Set;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class PreferenciasService {
 
-    @Autowired
-    private PreferenciaGeneroRepository preferenciaGeneroRepository;
-
-    @Autowired
-    private ContenidosClient contenidosClient;
+    private final PreferenciaGeneroRepository preferenciaGeneroRepository;
+    private final ContenidosClient contenidosClient;
 
     /**
      * Obtiene las preferencias de géneros de un usuario.
