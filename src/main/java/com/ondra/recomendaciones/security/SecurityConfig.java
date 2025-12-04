@@ -17,10 +17,10 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.Arrays;
 
 /**
- * Configuración de seguridad para el microservicio de recomendaciones.
+ * ConfiguraciИn de seguridad para el microservicio de recomendaciones.
  *
- * <p>Establece la cadena de filtros de seguridad, políticas CORS y autenticación
- * mediante tokens JWT y tokens de servicio para comunicación entre microservicios.</p>
+ * <p>Establece la cadena de filtros de seguridad, polヴticas CORS y autenticaciИn
+ * mediante tokens JWT y tokens de servicio para comunicaciИn entre microservicios.</p>
  */
 @Slf4j
 @Configuration
@@ -32,7 +32,7 @@ public class SecurityConfig {
     private final ServiceTokenFilter serviceTokenFilter;
 
     /**
-     * Configura las políticas CORS para permitir peticiones desde clientes específicos.
+     * Configura las polヴticas CORS para permitir peticiones desde clientes especヴficos.
      *
      * @return CorsConfigurationSource configurado
      */
@@ -62,12 +62,12 @@ public class SecurityConfig {
     /**
      * Configura la cadena de filtros de seguridad.
      *
-     * <p>Establece política de sesiones stateless y orden de filtros de autenticación.
-     * Los endpoints /api/** son accesibles, delegando la autenticación a filtros personalizados.</p>
+     * <p>Establece polヴtica de sesiones stateless y orden de filtros de autenticaciИn.
+     * Los endpoints /api/** son accesibles, delegando la autenticaciИn a filtros personalizados.</p>
      *
      * @param http HttpSecurity para configurar
      * @return SecurityFilterChain configurado
-     * @throws Exception si hay error en la configuración
+     * @throws Exception si hay error en la configuraciИn
      */
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -82,14 +82,13 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(exception -> exception
-                        .authenticationEntryPoint((request, response, authException) -> {
-                            log.debug("📍 AuthenticationEntryPoint: {}", request.getRequestURI());
-                        })
+                        .authenticationEntryPoint((request, response, authException) ->
+                                log.debug("ĐY\"? AuthenticationEntryPoint: {}", request.getRequestURI()))
                 )
                 .addFilterBefore(serviceTokenFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
-        log.info("🔒 Cadena de seguridad configurada - Orden: ServiceTokenFilter -> JwtAuthenticationFilter");
+        log.info("胑\"' Cadena de seguridad configurada - Orden: ServiceTokenFilter -> JwtAuthenticationFilter");
 
         return http.build();
     }
