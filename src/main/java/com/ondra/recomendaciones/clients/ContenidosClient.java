@@ -12,28 +12,33 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * Cliente para comunicación con el microservicio de contenidos.
- *
- * <p>Gestiona las operaciones relacionadas con géneros, canciones y álbumes,
- * incluyendo consultas de compras y favoritos de usuarios.</p>
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class ContenidosClient {
 
     private static final String GENEROS_PATH = "/generos/";
+    private static final String EXISTE_SUFFIX = "/existe";
+    private static final String NOMBRE_SUFFIX = "/nombre";
+    private static final String CANCIONES_PATH = "/canciones";
+    private static final String ALBUMES_PATH = "/albumes";
+    private static final String ARTIST_SEGMENT = "/artist/";
+    private static final String GENRE_QUERY = "genreId=";
     private static final String LIMIT_PARAM = "&limit=";
     private static final String COMPRAS_USUARIO_PATH = "/compras?idUsuario=";
     private static final String FAVORITOS_USUARIO_PATH = "/favoritos?idUsuario=";
     private static final String TIPO_CANCION_LIMIT = "&tipo=CANCION&limit=1000";
     private static final String TIPO_ALBUM_LIMIT = "&tipo=ALBUM&limit=1000";
+    private static final String COMPRAS_KEY = "compras";
+    private static final String FAVORITOS_KEY = "favoritos";
+    private static final String CANCIONES_KEY = "canciones";
+    private static final String ALBUMES_KEY = "albumes";
     private static final String ID_CANCION_KEY = "idCancion";
     private static final String TITULO_CANCION_KEY = "tituloCancion";
     private static final String GENERO_KEY = "genero";
@@ -48,16 +53,10 @@ public class ContenidosClient {
     @Value("${microservices.contenidos.url}")
     private String contenidosUrl;
 
-    /**
-     * Verifica la existencia de un género en el sistema.
-     *
-     * @param idGenero identificador del género
-     * @return true si el género existe, false en caso contrario
-     */
     public boolean existeGenero(Long idGenero) {
         try {
-            String url = contenidosUrl + GENEROS_PATH + idGenero + "/existe";
-            log.debug("🔍 Verificando existencia de género ID: {}", idGenero);
+            String url = buildGeneroExisteUrl(idGenero);
+            log.debug("Verificando existencia de genero ID: {}", idGenero);
 
             ResponseEntity<Boolean> response = restTemplate.exchange(
                     url,
@@ -67,26 +66,20 @@ public class ContenidosClient {
             );
 
             boolean existe = response.getBody() != null && response.getBody();
-            log.debug("Género {} existe: {}", idGenero, existe);
+            log.debug("Genero {} existe: {}", idGenero, existe);
 
             return existe;
 
         } catch (Exception e) {
-            log.error("❌ Error al verificar género {}: {}", idGenero, e.getMessage());
+            log.error("Error al verificar genero {}: {}", idGenero, e.getMessage());
             return false;
         }
     }
 
-    /**
-     * Obtiene el nombre de un género.
-     *
-     * @param idGenero identificador del género
-     * @return nombre del género o null si no existe
-     */
     public String obtenerNombreGenero(Long idGenero) {
         try {
-            String url = contenidosUrl + GENEROS_PATH + idGenero + "/nombre";
-            log.debug("📋 Obteniendo nombre de género ID: {}", idGenero);
+            String url = buildGeneroNombreUrl(idGenero);
+            log.debug("Obteniendo nombre de genero ID: {}", idGenero);
 
             ResponseEntity<String> response = restTemplate.exchange(
                     url,
@@ -96,26 +89,20 @@ public class ContenidosClient {
             );
 
             String nombre = response.getBody();
-            log.debug("Nombre del género {}: {}", idGenero, nombre);
+            log.debug("Nombre del genero {}: {}", idGenero, nombre);
 
             return nombre;
 
         } catch (Exception e) {
-            log.error("❌ Error al obtener nombre del género {}: {}", idGenero, e.getMessage());
+            log.error("Error al obtener nombre del genero {}: {}", idGenero, e.getMessage());
             return null;
         }
     }
 
-    /**
-     * Obtiene la información completa de un género.
-     *
-     * @param idGenero identificador del género
-     * @return mapa con los datos del género o null si no existe
-     */
     public Map<String, Object> obtenerGenero(Long idGenero) {
         try {
-            String url = contenidosUrl + GENEROS_PATH + idGenero;
-            log.debug("📋 Obteniendo género completo ID: {}", idGenero);
+            String url = buildGeneroUrl(idGenero);
+            log.debug("Obteniendo genero completo ID: {}", idGenero);
 
             ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                     url,
@@ -124,25 +111,18 @@ public class ContenidosClient {
                     new ParameterizedTypeReference<Map<String, Object>>() {}
             );
 
-            return response.getBody();
+            return response.getBody() != null ? response.getBody() : Collections.emptyMap();
 
         } catch (Exception e) {
-            log.error("❌ Error al obtener género {}: {}", idGenero, e.getMessage());
-            return null;
+            log.error("Error al obtener genero {}: {}", idGenero, e.getMessage());
+            return Collections.emptyMap();
         }
     }
 
-    /**
-     * Obtiene canciones filtradas por género.
-     *
-     * @param idGenero identificador del género musical
-     * @param limite número máximo de canciones a retornar
-     * @return lista de canciones del género especificado
-     */
     public List<CancionRecomendadaDTO> obtenerCancionesPorGenero(Long idGenero, int limite) {
         try {
-            String url = contenidosUrl + "/canciones?genreId=" + idGenero + LIMIT_PARAM + limite;
-            log.debug("🎵 Obteniendo canciones del género {} (límite: {})", idGenero, limite);
+            String url = buildCancionesPorGeneroUrl(idGenero, limite);
+            log.debug("Obteniendo canciones del genero {} (limite: {})", idGenero, limite);
 
             ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                     url,
@@ -151,54 +131,24 @@ public class ContenidosClient {
                     new ParameterizedTypeReference<Map<String, Object>>() {}
             );
 
-            List<CancionRecomendadaDTO> canciones = new ArrayList<>();
-            if (response.getBody() != null) {
-                Map<String, Object> body = response.getBody();
-
-                @SuppressWarnings(UNCHECKED)
-                List<Map<String, Object>> cancionesData = (List<Map<String, Object>>) body.get("canciones");
-
-                if (cancionesData != null) {
-                    for (Map<String, Object> cancionData : cancionesData) {
-                        Long idCancion = parseLong(cancionData.get(ID_CANCION_KEY));
-                        String titulo = (String) cancionData.get(TITULO_CANCION_KEY);
-                        String nombreGenero = (String) cancionData.get(GENERO_KEY);
-
-                        if (idCancion == null) {
-                            log.warn("⚠️ ID de canción no encontrado en respuesta del género {}", idGenero);
-                            continue;
-                        }
-
-                        CancionRecomendadaDTO cancion = CancionRecomendadaDTO.builder()
-                                .idCancion(idCancion)
-                                .titulo(titulo)
-                                .idGenero(idGenero)
-                                .nombreGenero(nombreGenero)
-                                .build();
-                        canciones.add(cancion);
-                    }
-                }
-                log.debug("✅ Obtenidas {} canciones del género {}", canciones.size(), idGenero);
-            }
-
+            List<CancionRecomendadaDTO> canciones = mapearCanciones(
+                    obtenerElementos(response.getBody(), CANCIONES_KEY),
+                    idGenero,
+                    "genero " + idGenero
+            );
+            log.debug("Obtenidas {} canciones del genero {}", canciones.size(), idGenero);
             return canciones;
 
         } catch (Exception e) {
-            log.error("❌ Error al obtener canciones del género {}: {}", idGenero, e.getMessage(), e);
+            log.error("Error al obtener canciones del genero {}: {}", idGenero, e.getMessage(), e);
             return new ArrayList<>();
         }
     }
 
-    /**
-     * Obtiene todas las canciones de un artista.
-     *
-     * @param idArtista identificador del artista
-     * @return lista de canciones del artista
-     */
     public List<CancionRecomendadaDTO> obtenerCancionesPorArtista(Long idArtista) {
         try {
-            String url = contenidosUrl + "/canciones/artist/" + idArtista;
-            log.debug("🎨 Obteniendo canciones del artista {}", idArtista);
+            String url = buildCancionesPorArtistaUrl(idArtista);
+            log.debug("Obteniendo canciones del artista {}", idArtista);
 
             ResponseEntity<List<Map<String, Object>>> response = restTemplate.exchange(
                     url,
@@ -207,43 +157,20 @@ public class ContenidosClient {
                     new ParameterizedTypeReference<List<Map<String, Object>>>() {}
             );
 
-            List<CancionRecomendadaDTO> canciones = new ArrayList<>();
-            if (response.getBody() != null) {
-                for (Map<String, Object> cancionData : response.getBody()) {
-                    Long idCancion = parseLong(cancionData.get(ID_CANCION_KEY));
-                    String genero = (String) cancionData.get(GENERO_KEY);
-
-                    if (idCancion == null) {
-                        log.warn("⚠️ ID de canción no encontrado en respuesta del artista {}", idArtista);
-                        continue;
-                    }
-
-                    CancionRecomendadaDTO cancion = CancionRecomendadaDTO.builder()
-                            .idCancion(idCancion)
-                            .titulo((String) cancionData.get(TITULO_CANCION_KEY))
-                            .idGenero(null)
-                            .nombreGenero(genero)
-                            .build();
-                    canciones.add(cancion);
-                }
-                log.debug("✅ Obtenidas {} canciones del artista {}", canciones.size(), idArtista);
-            }
-
+            List<CancionRecomendadaDTO> canciones = mapearCanciones(
+                    response.getBody(),
+                    null,
+                    "artista " + idArtista
+            );
+            log.debug("Obtenidas {} canciones del artista {}", canciones.size(), idArtista);
             return canciones;
 
         } catch (Exception e) {
-            log.error("❌ Error al obtener canciones del artista {}: {}", idArtista, e.getMessage(), e);
+            log.error("Error al obtener canciones del artista {}: {}", idArtista, e.getMessage(), e);
             return new ArrayList<>();
         }
     }
 
-    /**
-     * Obtiene los identificadores de canciones asociadas al usuario.
-     * Combina compras y favoritos eliminando duplicados.
-     *
-     * @param idUsuario identificador del usuario
-     * @return lista de identificadores únicos de canciones
-     */
     public List<Long> obtenerCancionesUsuario(Long idUsuario) {
         List<Long> idsCompras = obtenerComprasCancionesUsuario(idUsuario);
         List<Long> idsFavoritos = obtenerFavoritosCancionesUsuario(idUsuario);
@@ -252,22 +179,16 @@ public class ContenidosClient {
         idsUnicos.addAll(idsCompras);
         idsUnicos.addAll(idsFavoritos);
 
-        log.debug("Usuario {} - Canciones: {} compradas, {} favoritas, {} únicas",
+        log.debug("Usuario {} - Canciones: {} compradas, {} favoritas, {} unicas",
                 idUsuario, idsCompras.size(), idsFavoritos.size(), idsUnicos.size());
 
         return new ArrayList<>(idsUnicos);
     }
 
-    /**
-     * Obtiene los identificadores de canciones compradas por el usuario.
-     *
-     * @param idUsuario identificador del usuario
-     * @return lista de identificadores de canciones compradas
-     */
     private List<Long> obtenerComprasCancionesUsuario(Long idUsuario) {
         try {
-            String url = contenidosUrl + COMPRAS_USUARIO_PATH + idUsuario + TIPO_CANCION_LIMIT;
-            log.debug("🛒 Obteniendo compras de canciones del usuario {}", idUsuario);
+            String url = buildComprasUrl(idUsuario, TIPO_CANCION_LIMIT);
+            log.debug("Obteniendo compras de canciones del usuario {}", idUsuario);
 
             ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                     url,
@@ -279,21 +200,15 @@ public class ContenidosClient {
             return extraerIdsDeCompras(response.getBody());
 
         } catch (Exception e) {
-            log.error("❌ Error al obtener compras de canciones del usuario {}: {}", idUsuario, e.getMessage());
+            log.error("Error al obtener compras de canciones del usuario {}: {}", idUsuario, e.getMessage());
             return new ArrayList<>();
         }
     }
 
-    /**
-     * Obtiene los identificadores de canciones marcadas como favoritas por el usuario.
-     *
-     * @param idUsuario identificador del usuario
-     * @return lista de identificadores de canciones favoritas
-     */
     private List<Long> obtenerFavoritosCancionesUsuario(Long idUsuario) {
         try {
-            String url = contenidosUrl + FAVORITOS_USUARIO_PATH + idUsuario + TIPO_CANCION_LIMIT;
-            log.debug("⭐ Obteniendo favoritos de canciones del usuario {}", idUsuario);
+            String url = buildFavoritosUrl(idUsuario, TIPO_CANCION_LIMIT);
+            log.debug("Obteniendo favoritos de canciones del usuario {}", idUsuario);
 
             ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                     url,
@@ -305,22 +220,15 @@ public class ContenidosClient {
             return extraerIdsDeFavoritos(response.getBody());
 
         } catch (Exception e) {
-            log.error("❌ Error al obtener favoritos de canciones del usuario {}: {}", idUsuario, e.getMessage());
+            log.error("Error al obtener favoritos de canciones del usuario {}: {}", idUsuario, e.getMessage());
             return new ArrayList<>();
         }
     }
 
-    /**
-     * Obtiene álbumes filtrados por género.
-     *
-     * @param idGenero identificador del género musical
-     * @param limite número máximo de álbumes a retornar
-     * @return lista de álbumes del género especificado
-     */
     public List<AlbumRecomendadoDTO> obtenerAlbumesPorGenero(Long idGenero, int limite) {
         try {
-            String url = contenidosUrl + "/albumes?genreId=" + idGenero + LIMIT_PARAM + limite;
-            log.debug("💿 Obteniendo álbumes del género {} (límite: {})", idGenero, limite);
+            String url = buildAlbumesPorGeneroUrl(idGenero, limite);
+            log.debug("Obteniendo albumes del genero {} (limite: {})", idGenero, limite);
 
             ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                     url,
@@ -329,54 +237,24 @@ public class ContenidosClient {
                     new ParameterizedTypeReference<Map<String, Object>>() {}
             );
 
-            List<AlbumRecomendadoDTO> albumes = new ArrayList<>();
-            if (response.getBody() != null) {
-                Map<String, Object> body = response.getBody();
-
-                @SuppressWarnings(UNCHECKED)
-                List<Map<String, Object>> albumesData = (List<Map<String, Object>>) body.get("albumes");
-
-                if (albumesData != null) {
-                    for (Map<String, Object> albumData : albumesData) {
-                        Long idAlbum = parseLong(albumData.get(ID_ALBUM_KEY));
-                        String titulo = (String) albumData.get(TITULO_ALBUM_KEY);
-                        String nombreGenero = (String) albumData.get(GENERO_KEY);
-
-                        if (idAlbum == null) {
-                            log.warn("⚠️ ID de álbum no encontrado en respuesta del género {}", idGenero);
-                            continue;
-                        }
-
-                        AlbumRecomendadoDTO album = AlbumRecomendadoDTO.builder()
-                                .idAlbum(idAlbum)
-                                .titulo(titulo)
-                                .idGenero(idGenero)
-                                .nombreGenero(nombreGenero)
-                                .build();
-                        albumes.add(album);
-                    }
-                }
-                log.debug("✅ Obtenidos {} álbumes del género {}", albumes.size(), idGenero);
-            }
-
+            List<AlbumRecomendadoDTO> albumes = mapearAlbumes(
+                    obtenerElementos(response.getBody(), ALBUMES_KEY),
+                    idGenero,
+                    "genero " + idGenero
+            );
+            log.debug("Obtenidos {} albumes del genero {}", albumes.size(), idGenero);
             return albumes;
 
         } catch (Exception e) {
-            log.error("❌ Error al obtener álbumes del género {}: {}", idGenero, e.getMessage(), e);
+            log.error("Error al obtener albumes del genero {}: {}", idGenero, e.getMessage(), e);
             return new ArrayList<>();
         }
     }
 
-    /**
-     * Obtiene todos los álbumes de un artista.
-     *
-     * @param idArtista identificador del artista
-     * @return lista de álbumes del artista
-     */
     public List<AlbumRecomendadoDTO> obtenerAlbumesPorArtista(Long idArtista) {
         try {
-            String url = contenidosUrl + "/albumes/artist/" + idArtista;
-            log.debug("🎨 Obteniendo álbumes del artista {}", idArtista);
+            String url = buildAlbumesPorArtistaUrl(idArtista);
+            log.debug("Obteniendo albumes del artista {}", idArtista);
 
             ResponseEntity<List<Map<String, Object>>> response = restTemplate.exchange(
                     url,
@@ -385,43 +263,20 @@ public class ContenidosClient {
                     new ParameterizedTypeReference<List<Map<String, Object>>>() {}
             );
 
-            List<AlbumRecomendadoDTO> albumes = new ArrayList<>();
-            if (response.getBody() != null) {
-                for (Map<String, Object> albumData : response.getBody()) {
-                    Long idAlbum = parseLong(albumData.get(ID_ALBUM_KEY));
-                    String genero = (String) albumData.get(GENERO_KEY);
-
-                    if (idAlbum == null) {
-                        log.warn("⚠️ ID de álbum no encontrado en respuesta del artista {}", idArtista);
-                        continue;
-                    }
-
-                    AlbumRecomendadoDTO album = AlbumRecomendadoDTO.builder()
-                            .idAlbum(idAlbum)
-                            .titulo((String) albumData.get(TITULO_ALBUM_KEY))
-                            .idGenero(null)
-                            .nombreGenero(genero)
-                            .build();
-                    albumes.add(album);
-                }
-                log.debug("✅ Obtenidos {} álbumes del artista {}", albumes.size(), idArtista);
-            }
-
+            List<AlbumRecomendadoDTO> albumes = mapearAlbumes(
+                    response.getBody(),
+                    null,
+                    "artista " + idArtista
+            );
+            log.debug("Obtenidos {} albumes del artista {}", albumes.size(), idArtista);
             return albumes;
 
         } catch (Exception e) {
-            log.error("❌ Error al obtener álbumes del artista {}: {}", idArtista, e.getMessage(), e);
+            log.error("Error al obtener albumes del artista {}: {}", idArtista, e.getMessage(), e);
             return new ArrayList<>();
         }
     }
 
-    /**
-     * Obtiene los identificadores de álbumes asociados al usuario.
-     * Combina compras y favoritos eliminando duplicados.
-     *
-     * @param idUsuario identificador del usuario
-     * @return lista de identificadores únicos de álbumes
-     */
     public List<Long> obtenerAlbumesUsuario(Long idUsuario) {
         List<Long> idsCompras = obtenerComprasAlbumesUsuario(idUsuario);
         List<Long> idsFavoritos = obtenerFavoritosAlbumesUsuario(idUsuario);
@@ -430,22 +285,16 @@ public class ContenidosClient {
         idsUnicos.addAll(idsCompras);
         idsUnicos.addAll(idsFavoritos);
 
-        log.debug("Usuario {} - Álbumes: {} comprados, {} favoritos, {} únicos",
+        log.debug("Usuario {} - Albumes: {} comprados, {} favoritos, {} unicos",
                 idUsuario, idsCompras.size(), idsFavoritos.size(), idsUnicos.size());
 
         return new ArrayList<>(idsUnicos);
     }
 
-    /**
-     * Obtiene los identificadores de álbumes comprados por el usuario.
-     *
-     * @param idUsuario identificador del usuario
-     * @return lista de identificadores de álbumes comprados
-     */
     private List<Long> obtenerComprasAlbumesUsuario(Long idUsuario) {
         try {
-            String url = contenidosUrl + COMPRAS_USUARIO_PATH + idUsuario + TIPO_ALBUM_LIMIT;
-            log.debug("🛒 Obteniendo compras de álbumes del usuario {}", idUsuario);
+            String url = buildComprasUrl(idUsuario, TIPO_ALBUM_LIMIT);
+            log.debug("Obteniendo compras de albumes del usuario {}", idUsuario);
 
             ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                     url,
@@ -457,21 +306,15 @@ public class ContenidosClient {
             return extraerIdsDeCompras(response.getBody());
 
         } catch (Exception e) {
-            log.error("❌ Error al obtener compras de álbumes del usuario {}: {}", idUsuario, e.getMessage());
+            log.error("Error al obtener compras de albumes del usuario {}: {}", idUsuario, e.getMessage());
             return new ArrayList<>();
         }
     }
 
-    /**
-     * Obtiene los identificadores de álbumes marcados como favoritos por el usuario.
-     *
-     * @param idUsuario identificador del usuario
-     * @return lista de identificadores de álbumes favoritos
-     */
     private List<Long> obtenerFavoritosAlbumesUsuario(Long idUsuario) {
         try {
-            String url = contenidosUrl + FAVORITOS_USUARIO_PATH + idUsuario + TIPO_ALBUM_LIMIT;
-            log.debug("⭐ Obteniendo favoritos de álbumes del usuario {}", idUsuario);
+            String url = buildFavoritosUrl(idUsuario, TIPO_ALBUM_LIMIT);
+            log.debug("Obteniendo favoritos de albumes del usuario {}", idUsuario);
 
             ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                     url,
@@ -483,135 +326,189 @@ public class ContenidosClient {
             return extraerIdsDeFavoritos(response.getBody());
 
         } catch (Exception e) {
-            log.error("❌ Error al obtener favoritos de álbumes del usuario {}: {}", idUsuario, e.getMessage());
+            log.error("Error al obtener favoritos de albumes del usuario {}: {}", idUsuario, e.getMessage());
             return new ArrayList<>();
         }
     }
 
-    /**
-     * Extrae identificadores de contenido desde una respuesta de compras.
-     *
-     * @param data mapa con la estructura de respuesta paginada
-     * @return lista de identificadores extraídos
-     */
     @SuppressWarnings(UNCHECKED)
     private List<Long> extraerIdsDeCompras(Map<String, Object> data) {
-        List<Long> ids = new ArrayList<>();
-
-        if (data == null) {
-            return ids;
-        }
-
-        try {
-            Object comprasObj = data.get("compras");
-
-            if (comprasObj instanceof List) {
-                List<Map<String, Object>> compras = (List<Map<String, Object>>) comprasObj;
-
-                for (Map<String, Object> compra : compras) {
-                    Object cancionObj = compra.get(CANCION_KEY);
-                    Object albumObj = compra.get(ALBUM_KEY);
-
-                    if (cancionObj instanceof Map) {
-                        Map<String, Object> cancion = (Map<String, Object>) cancionObj;
-                        Long idCancion = parseLong(cancion.get(ID_CANCION_KEY));
-                        if (idCancion != null) {
-                            ids.add(idCancion);
-                        }
-                    } else if (albumObj instanceof Map) {
-                        Map<String, Object> album = (Map<String, Object>) albumObj;
-                        Long idAlbum = parseLong(album.get(ID_ALBUM_KEY));
-                        if (idAlbum != null) {
-                            ids.add(idAlbum);
-                        }
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.error("Error al extraer IDs de compras: {}", e.getMessage());
-        }
-
-        log.debug("📦 Extraídos {} IDs de compras", ids.size());
-        return ids;
+        return extraerIdsDesdeColeccion(data, COMPRAS_KEY);
     }
 
-    /**
-     * Extrae identificadores de contenido desde una respuesta de favoritos.
-     *
-     * @param data mapa con la estructura de respuesta paginada
-     * @return lista de identificadores extraídos
-     */
     @SuppressWarnings(UNCHECKED)
     private List<Long> extraerIdsDeFavoritos(Map<String, Object> data) {
-        List<Long> ids = new ArrayList<>();
-
-        if (data == null) {
-            return ids;
-        }
-
-        try {
-            Object favoritosObj = data.get("favoritos");
-
-            if (favoritosObj instanceof List) {
-                List<Map<String, Object>> favoritos = (List<Map<String, Object>>) favoritosObj;
-
-                for (Map<String, Object> favorito : favoritos) {
-                    Object cancionObj = favorito.get(CANCION_KEY);
-                    Object albumObj = favorito.get(ALBUM_KEY);
-
-                    if (cancionObj instanceof Map) {
-                        Map<String, Object> cancion = (Map<String, Object>) cancionObj;
-                        Long idCancion = parseLong(cancion.get(ID_CANCION_KEY));
-                        if (idCancion != null) {
-                            ids.add(idCancion);
-                        }
-                    } else if (albumObj instanceof Map) {
-                        Map<String, Object> album = (Map<String, Object>) albumObj;
-                        Long idAlbum = parseLong(album.get(ID_ALBUM_KEY));
-                        if (idAlbum != null) {
-                            ids.add(idAlbum);
-                        }
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.error("Error al extraer IDs de favoritos: {}", e.getMessage());
-        }
-
-        log.debug("⭐ Extraídos {} IDs de favoritos", ids.size());
-        return ids;
+        return extraerIdsDesdeColeccion(data, FAVORITOS_KEY);
     }
 
-    /**
-     * Convierte un objeto a tipo Long de forma segura.
-     * Soporta conversión desde Integer, Long y String.
-     *
-     * @param value objeto a convertir
-     * @return valor convertido a Long o null si la conversión falla
-     */
     private Long parseLong(Object value) {
         if (value == null) {
             return null;
         }
 
-        if (value instanceof Long) {
-            return (Long) value;
+        if (value instanceof Long longValue) {
+            return longValue;
         }
 
-        if (value instanceof Integer) {
-            return ((Integer) value).longValue();
+        if (value instanceof Integer integerValue) {
+            return integerValue.longValue();
         }
 
-        if (value instanceof String) {
+        if (value instanceof String stringValue) {
             try {
-                return Long.parseLong((String) value);
+                return Long.parseLong(stringValue);
             } catch (NumberFormatException e) {
                 log.warn("No se pudo parsear '{}' a Long", value);
                 return null;
             }
         }
 
-        log.warn("Tipo no soportado para conversión a Long: {}", value.getClass().getName());
+        log.warn("Tipo no soportado para conversion a Long: {}", value.getClass().getName());
         return null;
+    }
+
+    private String buildGeneroUrl(Long idGenero) {
+        return contenidosUrl + GENEROS_PATH + idGenero;
+    }
+
+    private String buildGeneroExisteUrl(Long idGenero) {
+        return buildGeneroUrl(idGenero) + EXISTE_SUFFIX;
+    }
+
+    private String buildGeneroNombreUrl(Long idGenero) {
+        return buildGeneroUrl(idGenero) + NOMBRE_SUFFIX;
+    }
+
+    private String buildCancionesPorGeneroUrl(Long idGenero, int limite) {
+        return contenidosUrl + CANCIONES_PATH + "?" + GENRE_QUERY + idGenero + LIMIT_PARAM + limite;
+    }
+
+    private String buildAlbumesPorGeneroUrl(Long idGenero, int limite) {
+        return contenidosUrl + ALBUMES_PATH + "?" + GENRE_QUERY + idGenero + LIMIT_PARAM + limite;
+    }
+
+    private String buildCancionesPorArtistaUrl(Long idArtista) {
+        return contenidosUrl + CANCIONES_PATH + ARTIST_SEGMENT + idArtista;
+    }
+
+    private String buildAlbumesPorArtistaUrl(Long idArtista) {
+        return contenidosUrl + ALBUMES_PATH + ARTIST_SEGMENT + idArtista;
+    }
+
+    private String buildComprasUrl(Long idUsuario, String tipoLimit) {
+        return contenidosUrl + COMPRAS_USUARIO_PATH + idUsuario + tipoLimit;
+    }
+
+    private String buildFavoritosUrl(Long idUsuario, String tipoLimit) {
+        return contenidosUrl + FAVORITOS_USUARIO_PATH + idUsuario + tipoLimit;
+    }
+
+    @SuppressWarnings(UNCHECKED)
+    private List<Map<String, Object>> obtenerElementos(Map<String, Object> body, String key) {
+        if (body == null) {
+            return Collections.emptyList();
+        }
+
+        Object data = body.get(key);
+        if (data instanceof List<?> lista) {
+            return (List<Map<String, Object>>) lista;
+        }
+
+        return Collections.emptyList();
+    }
+
+    private List<CancionRecomendadaDTO> mapearCanciones(List<Map<String, Object>> cancionesData,
+                                                       Long idGenero,
+                                                       String contexto) {
+        List<CancionRecomendadaDTO> canciones = new ArrayList<>();
+        if (cancionesData == null) {
+            return canciones;
+        }
+
+        for (Map<String, Object> cancionData : cancionesData) {
+            Long idCancion = parseLong(cancionData.get(ID_CANCION_KEY));
+            if (idCancion == null) {
+                log.warn("ID de cancion no encontrado en respuesta del {}", contexto);
+                continue;
+            }
+
+            canciones.add(CancionRecomendadaDTO.builder()
+                    .idCancion(idCancion)
+                    .titulo((String) cancionData.get(TITULO_CANCION_KEY))
+                    .idGenero(idGenero)
+                    .nombreGenero((String) cancionData.get(GENERO_KEY))
+                    .build());
+        }
+
+        return canciones;
+    }
+
+    private List<AlbumRecomendadoDTO> mapearAlbumes(List<Map<String, Object>> albumesData,
+                                                   Long idGenero,
+                                                   String contexto) {
+        List<AlbumRecomendadoDTO> albumes = new ArrayList<>();
+        if (albumesData == null) {
+            return albumes;
+        }
+
+        for (Map<String, Object> albumData : albumesData) {
+            Long idAlbum = parseLong(albumData.get(ID_ALBUM_KEY));
+            if (idAlbum == null) {
+                log.warn("ID de album no encontrado en respuesta del {}", contexto);
+                continue;
+            }
+
+            albumes.add(AlbumRecomendadoDTO.builder()
+                    .idAlbum(idAlbum)
+                    .titulo((String) albumData.get(TITULO_ALBUM_KEY))
+                    .idGenero(idGenero)
+                    .nombreGenero((String) albumData.get(GENERO_KEY))
+                    .build());
+        }
+
+        return albumes;
+    }
+
+    @SuppressWarnings(UNCHECKED)
+    private List<Long> extraerIdsDesdeColeccion(Map<String, Object> data, String coleccionKey) {
+        List<Long> ids = new ArrayList<>();
+
+        if (data == null) {
+            return ids;
+        }
+
+        try {
+            Object coleccionObj = data.get(coleccionKey);
+
+            if (coleccionObj instanceof List<?> coleccion) {
+                for (Object elemento : coleccion) {
+                    if (elemento instanceof Map<?, ?> contenido) {
+                        agregarIdContenido(ids, contenido);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error al extraer IDs de {}: {}", coleccionKey, e.getMessage());
+        }
+
+        log.debug("Extraidos {} IDs de {}", ids.size(), coleccionKey);
+        return ids;
+    }
+
+    private void agregarIdContenido(List<Long> ids, Map<?, ?> contenido) {
+        Object cancionObj = contenido.get(CANCION_KEY);
+        Object albumObj = contenido.get(ALBUM_KEY);
+
+        if (cancionObj instanceof Map<?, ?> cancion) {
+            Long idCancion = parseLong(cancion.get(ID_CANCION_KEY));
+            if (idCancion != null) {
+                ids.add(idCancion);
+            }
+        } else if (albumObj instanceof Map<?, ?> album) {
+            Long idAlbum = parseLong(album.get(ID_ALBUM_KEY));
+            if (idAlbum != null) {
+                ids.add(idAlbum);
+            }
+        }
     }
 }
