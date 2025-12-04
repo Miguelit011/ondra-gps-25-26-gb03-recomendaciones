@@ -28,6 +28,21 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class ContenidosClient {
 
+    private static final String GENEROS_PATH = "/generos/";
+    private static final String LIMIT_PARAM = "&limit=";
+    private static final String COMPRAS_USUARIO_PATH = "/compras?idUsuario=";
+    private static final String FAVORITOS_USUARIO_PATH = "/favoritos?idUsuario=";
+    private static final String TIPO_CANCION_LIMIT = "&tipo=CANCION&limit=1000";
+    private static final String TIPO_ALBUM_LIMIT = "&tipo=ALBUM&limit=1000";
+    private static final String ID_CANCION_KEY = "idCancion";
+    private static final String TITULO_CANCION_KEY = "tituloCancion";
+    private static final String GENERO_KEY = "genero";
+    private static final String ID_ALBUM_KEY = "idAlbum";
+    private static final String TITULO_ALBUM_KEY = "tituloAlbum";
+    private static final String CANCION_KEY = "cancion";
+    private static final String ALBUM_KEY = "album";
+    private static final String UNCHECKED = "unchecked";
+
     private final RestTemplate restTemplate;
 
     @Value("${microservices.contenidos.url}")
@@ -41,7 +56,7 @@ public class ContenidosClient {
      */
     public boolean existeGenero(Long idGenero) {
         try {
-            String url = contenidosUrl + "/generos/" + idGenero + "/existe";
+            String url = contenidosUrl + GENEROS_PATH + idGenero + "/existe";
             log.debug("🔍 Verificando existencia de género ID: {}", idGenero);
 
             ResponseEntity<Boolean> response = restTemplate.exchange(
@@ -70,7 +85,7 @@ public class ContenidosClient {
      */
     public String obtenerNombreGenero(Long idGenero) {
         try {
-            String url = contenidosUrl + "/generos/" + idGenero + "/nombre";
+            String url = contenidosUrl + GENEROS_PATH + idGenero + "/nombre";
             log.debug("📋 Obteniendo nombre de género ID: {}", idGenero);
 
             ResponseEntity<String> response = restTemplate.exchange(
@@ -99,7 +114,7 @@ public class ContenidosClient {
      */
     public Map<String, Object> obtenerGenero(Long idGenero) {
         try {
-            String url = contenidosUrl + "/generos/" + idGenero;
+            String url = contenidosUrl + GENEROS_PATH + idGenero;
             log.debug("📋 Obteniendo género completo ID: {}", idGenero);
 
             ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
@@ -126,7 +141,7 @@ public class ContenidosClient {
      */
     public List<CancionRecomendadaDTO> obtenerCancionesPorGenero(Long idGenero, int limite) {
         try {
-            String url = contenidosUrl + "/canciones?genreId=" + idGenero + "&limit=" + limite;
+            String url = contenidosUrl + "/canciones?genreId=" + idGenero + LIMIT_PARAM + limite;
             log.debug("🎵 Obteniendo canciones del género {} (límite: {})", idGenero, limite);
 
             ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
@@ -140,14 +155,14 @@ public class ContenidosClient {
             if (response.getBody() != null) {
                 Map<String, Object> body = response.getBody();
 
-                @SuppressWarnings("unchecked")
+                @SuppressWarnings(UNCHECKED)
                 List<Map<String, Object>> cancionesData = (List<Map<String, Object>>) body.get("canciones");
 
                 if (cancionesData != null) {
                     for (Map<String, Object> cancionData : cancionesData) {
-                        Long idCancion = parseLong(cancionData.get("idCancion"));
-                        String titulo = (String) cancionData.get("tituloCancion");
-                        String nombreGenero = (String) cancionData.get("genero");
+                        Long idCancion = parseLong(cancionData.get(ID_CANCION_KEY));
+                        String titulo = (String) cancionData.get(TITULO_CANCION_KEY);
+                        String nombreGenero = (String) cancionData.get(GENERO_KEY);
 
                         if (idCancion == null) {
                             log.warn("⚠️ ID de canción no encontrado en respuesta del género {}", idGenero);
@@ -195,8 +210,8 @@ public class ContenidosClient {
             List<CancionRecomendadaDTO> canciones = new ArrayList<>();
             if (response.getBody() != null) {
                 for (Map<String, Object> cancionData : response.getBody()) {
-                    Long idCancion = parseLong(cancionData.get("idCancion"));
-                    String genero = (String) cancionData.get("genero");
+                    Long idCancion = parseLong(cancionData.get(ID_CANCION_KEY));
+                    String genero = (String) cancionData.get(GENERO_KEY);
 
                     if (idCancion == null) {
                         log.warn("⚠️ ID de canción no encontrado en respuesta del artista {}", idArtista);
@@ -205,7 +220,7 @@ public class ContenidosClient {
 
                     CancionRecomendadaDTO cancion = CancionRecomendadaDTO.builder()
                             .idCancion(idCancion)
-                            .titulo((String) cancionData.get("tituloCancion"))
+                            .titulo((String) cancionData.get(TITULO_CANCION_KEY))
                             .idGenero(null)
                             .nombreGenero(genero)
                             .build();
@@ -251,7 +266,7 @@ public class ContenidosClient {
      */
     private List<Long> obtenerComprasCancionesUsuario(Long idUsuario) {
         try {
-            String url = contenidosUrl + "/compras?idUsuario=" + idUsuario + "&tipo=CANCION&limit=1000";
+            String url = contenidosUrl + COMPRAS_USUARIO_PATH + idUsuario + TIPO_CANCION_LIMIT;
             log.debug("🛒 Obteniendo compras de canciones del usuario {}", idUsuario);
 
             ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
@@ -277,7 +292,7 @@ public class ContenidosClient {
      */
     private List<Long> obtenerFavoritosCancionesUsuario(Long idUsuario) {
         try {
-            String url = contenidosUrl + "/favoritos?idUsuario=" + idUsuario + "&tipo=CANCION&limit=1000";
+            String url = contenidosUrl + FAVORITOS_USUARIO_PATH + idUsuario + TIPO_CANCION_LIMIT;
             log.debug("⭐ Obteniendo favoritos de canciones del usuario {}", idUsuario);
 
             ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
@@ -304,7 +319,7 @@ public class ContenidosClient {
      */
     public List<AlbumRecomendadoDTO> obtenerAlbumesPorGenero(Long idGenero, int limite) {
         try {
-            String url = contenidosUrl + "/albumes?genreId=" + idGenero + "&limit=" + limite;
+            String url = contenidosUrl + "/albumes?genreId=" + idGenero + LIMIT_PARAM + limite;
             log.debug("💿 Obteniendo álbumes del género {} (límite: {})", idGenero, limite);
 
             ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
@@ -318,14 +333,14 @@ public class ContenidosClient {
             if (response.getBody() != null) {
                 Map<String, Object> body = response.getBody();
 
-                @SuppressWarnings("unchecked")
+                @SuppressWarnings(UNCHECKED)
                 List<Map<String, Object>> albumesData = (List<Map<String, Object>>) body.get("albumes");
 
                 if (albumesData != null) {
                     for (Map<String, Object> albumData : albumesData) {
-                        Long idAlbum = parseLong(albumData.get("idAlbum"));
-                        String titulo = (String) albumData.get("tituloAlbum");
-                        String nombreGenero = (String) albumData.get("genero");
+                        Long idAlbum = parseLong(albumData.get(ID_ALBUM_KEY));
+                        String titulo = (String) albumData.get(TITULO_ALBUM_KEY);
+                        String nombreGenero = (String) albumData.get(GENERO_KEY);
 
                         if (idAlbum == null) {
                             log.warn("⚠️ ID de álbum no encontrado en respuesta del género {}", idGenero);
@@ -373,8 +388,8 @@ public class ContenidosClient {
             List<AlbumRecomendadoDTO> albumes = new ArrayList<>();
             if (response.getBody() != null) {
                 for (Map<String, Object> albumData : response.getBody()) {
-                    Long idAlbum = parseLong(albumData.get("idAlbum"));
-                    String genero = (String) albumData.get("genero");
+                    Long idAlbum = parseLong(albumData.get(ID_ALBUM_KEY));
+                    String genero = (String) albumData.get(GENERO_KEY);
 
                     if (idAlbum == null) {
                         log.warn("⚠️ ID de álbum no encontrado en respuesta del artista {}", idArtista);
@@ -383,7 +398,7 @@ public class ContenidosClient {
 
                     AlbumRecomendadoDTO album = AlbumRecomendadoDTO.builder()
                             .idAlbum(idAlbum)
-                            .titulo((String) albumData.get("tituloAlbum"))
+                            .titulo((String) albumData.get(TITULO_ALBUM_KEY))
                             .idGenero(null)
                             .nombreGenero(genero)
                             .build();
@@ -429,7 +444,7 @@ public class ContenidosClient {
      */
     private List<Long> obtenerComprasAlbumesUsuario(Long idUsuario) {
         try {
-            String url = contenidosUrl + "/compras?idUsuario=" + idUsuario + "&tipo=ALBUM&limit=1000";
+            String url = contenidosUrl + COMPRAS_USUARIO_PATH + idUsuario + TIPO_ALBUM_LIMIT;
             log.debug("🛒 Obteniendo compras de álbumes del usuario {}", idUsuario);
 
             ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
@@ -455,7 +470,7 @@ public class ContenidosClient {
      */
     private List<Long> obtenerFavoritosAlbumesUsuario(Long idUsuario) {
         try {
-            String url = contenidosUrl + "/favoritos?idUsuario=" + idUsuario + "&tipo=ALBUM&limit=1000";
+            String url = contenidosUrl + FAVORITOS_USUARIO_PATH + idUsuario + TIPO_ALBUM_LIMIT;
             log.debug("⭐ Obteniendo favoritos de álbumes del usuario {}", idUsuario);
 
             ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
@@ -479,7 +494,7 @@ public class ContenidosClient {
      * @param data mapa con la estructura de respuesta paginada
      * @return lista de identificadores extraídos
      */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings(UNCHECKED)
     private List<Long> extraerIdsDeCompras(Map<String, Object> data) {
         List<Long> ids = new ArrayList<>();
 
@@ -494,18 +509,18 @@ public class ContenidosClient {
                 List<Map<String, Object>> compras = (List<Map<String, Object>>) comprasObj;
 
                 for (Map<String, Object> compra : compras) {
-                    Object cancionObj = compra.get("cancion");
-                    Object albumObj = compra.get("album");
+                    Object cancionObj = compra.get(CANCION_KEY);
+                    Object albumObj = compra.get(ALBUM_KEY);
 
                     if (cancionObj instanceof Map) {
                         Map<String, Object> cancion = (Map<String, Object>) cancionObj;
-                        Long idCancion = parseLong(cancion.get("idCancion"));
+                        Long idCancion = parseLong(cancion.get(ID_CANCION_KEY));
                         if (idCancion != null) {
                             ids.add(idCancion);
                         }
                     } else if (albumObj instanceof Map) {
                         Map<String, Object> album = (Map<String, Object>) albumObj;
-                        Long idAlbum = parseLong(album.get("idAlbum"));
+                        Long idAlbum = parseLong(album.get(ID_ALBUM_KEY));
                         if (idAlbum != null) {
                             ids.add(idAlbum);
                         }
@@ -526,7 +541,7 @@ public class ContenidosClient {
      * @param data mapa con la estructura de respuesta paginada
      * @return lista de identificadores extraídos
      */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings(UNCHECKED)
     private List<Long> extraerIdsDeFavoritos(Map<String, Object> data) {
         List<Long> ids = new ArrayList<>();
 
@@ -541,18 +556,18 @@ public class ContenidosClient {
                 List<Map<String, Object>> favoritos = (List<Map<String, Object>>) favoritosObj;
 
                 for (Map<String, Object> favorito : favoritos) {
-                    Object cancionObj = favorito.get("cancion");
-                    Object albumObj = favorito.get("album");
+                    Object cancionObj = favorito.get(CANCION_KEY);
+                    Object albumObj = favorito.get(ALBUM_KEY);
 
                     if (cancionObj instanceof Map) {
                         Map<String, Object> cancion = (Map<String, Object>) cancionObj;
-                        Long idCancion = parseLong(cancion.get("idCancion"));
+                        Long idCancion = parseLong(cancion.get(ID_CANCION_KEY));
                         if (idCancion != null) {
                             ids.add(idCancion);
                         }
                     } else if (albumObj instanceof Map) {
                         Map<String, Object> album = (Map<String, Object>) albumObj;
-                        Long idAlbum = parseLong(album.get("idAlbum"));
+                        Long idAlbum = parseLong(album.get(ID_ALBUM_KEY));
                         if (idAlbum != null) {
                             ids.add(idAlbum);
                         }
