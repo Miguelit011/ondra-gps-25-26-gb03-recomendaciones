@@ -7,15 +7,14 @@ import com.ondra.recomendaciones.dto.RecomendacionesResponseDTO;
 import com.ondra.recomendaciones.exceptions.ForbiddenAccessException;
 import com.ondra.recomendaciones.exceptions.InvalidParameterException;
 import com.ondra.recomendaciones.repositories.PreferenciaGeneroRepository;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * Servicio de generación de recomendaciones personalizadas.
@@ -25,13 +24,16 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class RecomendacionesService {
 
-    @Autowired
-    private PreferenciaGeneroRepository preferenciaGeneroRepository;
+    private static final String TIPO_CANCION = "cancion";
+    private static final String TIPO_ALBUM = "album";
+    private static final String TIPO_AMBOS = "ambos";
+    private static final String MENSAJE_TIPO_INVALIDO = "El tipo debe ser 'cancion', 'album' o 'ambos'";
 
-    @Autowired
-    private ContenidosClient contenidosClient;
+    private final PreferenciaGeneroRepository preferenciaGeneroRepository;
+    private final ContenidosClient contenidosClient;
 
     /**
      * Genera recomendaciones personalizadas basadas en preferencias del usuario.
@@ -57,45 +59,32 @@ public class RecomendacionesService {
         validarParametros(tipo, limite);
 
         List<Long> generosPreferidos = preferenciaGeneroRepository.findGeneroIdsByIdUsuario(idUsuario);
-
-        List<CancionRecomendadaDTO> canciones = new ArrayList<>();
-        List<AlbumRecomendadoDTO> albumes = new ArrayList<>();
-
         if (generosPreferidos.isEmpty()) {
             log.warn("⚠️ Usuario {} sin preferencias configuradas", idUsuario);
-            return RecomendacionesResponseDTO.builder()
-                    .idUsuario(idUsuario)
-                    .totalRecomendaciones(0)
-                    .canciones(canciones)
-                    .albumes(albumes)
-                    .build();
+            return construirRespuestaSinPreferencias(idUsuario);
         }
 
         Set<Long> cancionesExistentes = obtenerCancionesAExcluir(idUsuario, idArtista);
         Set<Long> albumesExistentes = obtenerAlbumesAExcluir(idUsuario, idArtista);
+        int itemsPorGenero = calcularItemsPorGenero(limite, generosPreferidos.size());
 
-        int itemsPorGenero = Math.max(1, limite / generosPreferidos.size()) + 2;
+        List<CancionRecomendadaDTO> canciones = obtenerCancionesRecomendadasSiAplica(
+                tipo,
+                generosPreferidos,
+                cancionesExistentes,
+                itemsPorGenero,
+                limite
+        );
 
-        if (tipo.equals("cancion") || tipo.equals("ambos")) {
-            canciones = generarRecomendacionesCanciones(
-                    generosPreferidos,
-                    cancionesExistentes,
-                    itemsPorGenero,
-                    limite
-            );
-        }
+        List<AlbumRecomendadoDTO> albumes = obtenerAlbumesRecomendadosSiAplica(
+                tipo,
+                generosPreferidos,
+                albumesExistentes,
+                itemsPorGenero,
+                limite
+        );
 
-        if (tipo.equals("album") || tipo.equals("ambos")) {
-            int limiteAlbumes = tipo.equals("ambos") ? limite / 2 : limite;
-            albumes = generarRecomendacionesAlbumes(
-                    generosPreferidos,
-                    albumesExistentes,
-                    itemsPorGenero,
-                    limiteAlbumes
-            );
-        }
-
-        if (tipo.equals("ambos")) {
+        if (esTipoAmbos(tipo)) {
             ajustarLimiteTotalAmbos(canciones, albumes, limite);
         }
 
@@ -190,7 +179,7 @@ public class RecomendacionesService {
 
             List<CancionRecomendadaDTO> cancionesFiltradas = cancionesGenero.stream()
                     .filter(c -> !cancionesExistentes.contains(c.getIdCancion()))
-                    .collect(Collectors.toList());
+                    .toList();
 
             todasCanciones.addAll(cancionesFiltradas);
 
@@ -199,9 +188,9 @@ public class RecomendacionesService {
             }
         }
 
-        return todasCanciones.stream()
+        return new ArrayList<>(todasCanciones.stream()
                 .limit(limiteTotal)
-                .collect(Collectors.toList());
+                .toList());
     }
 
     /**
@@ -227,7 +216,7 @@ public class RecomendacionesService {
 
             List<AlbumRecomendadoDTO> albumesFiltrados = albumesGenero.stream()
                     .filter(a -> !albumesExistentes.contains(a.getIdAlbum()))
-                    .collect(Collectors.toList());
+                    .toList();
 
             todosAlbumes.addAll(albumesFiltrados);
 
@@ -236,9 +225,9 @@ public class RecomendacionesService {
             }
         }
 
-        return todosAlbumes.stream()
+        return new ArrayList<>(todosAlbumes.stream()
                 .limit(limiteTotal)
-                .collect(Collectors.toList());
+                .toList());
     }
 
     /**
@@ -277,8 +266,8 @@ public class RecomendacionesService {
      * @throws InvalidParameterException si los parámetros son inválidos
      */
     private void validarParametros(String tipo, int limite) {
-        if (!tipo.equals("cancion") && !tipo.equals("album") && !tipo.equals("ambos")) {
-            throw new InvalidParameterException("El tipo debe ser 'cancion', 'album' o 'ambos'");
+        if (!esTipoValido(tipo)) {
+            throw new InvalidParameterException(MENSAJE_TIPO_INVALIDO);
         }
 
         if (limite < 1 || limite > 50) {
@@ -308,5 +297,73 @@ public class RecomendacionesService {
         }
 
         log.debug("🔓 Usuario es propietario");
+    }
+
+    private List<CancionRecomendadaDTO> obtenerCancionesRecomendadasSiAplica(
+            String tipo,
+            List<Long> generosPreferidos,
+            Set<Long> cancionesExistentes,
+            int itemsPorGenero,
+            int limite
+    ) {
+        if (!incluyeCancion(tipo)) {
+            return new ArrayList<>();
+        }
+
+        return generarRecomendacionesCanciones(
+                generosPreferidos,
+                cancionesExistentes,
+                itemsPorGenero,
+                limite
+        );
+    }
+
+    private List<AlbumRecomendadoDTO> obtenerAlbumesRecomendadosSiAplica(
+            String tipo,
+            List<Long> generosPreferidos,
+            Set<Long> albumesExistentes,
+            int itemsPorGenero,
+            int limite
+    ) {
+        if (!incluyeAlbum(tipo)) {
+            return new ArrayList<>();
+        }
+
+        int limiteAlbumes = esTipoAmbos(tipo) ? limite / 2 : limite;
+        return generarRecomendacionesAlbumes(
+                generosPreferidos,
+                albumesExistentes,
+                itemsPorGenero,
+                limiteAlbumes
+        );
+    }
+
+    private int calcularItemsPorGenero(int limite, int cantidadGeneros) {
+        return Math.max(1, limite / cantidadGeneros) + 2;
+    }
+
+    private boolean esTipoValido(String tipo) {
+        return incluyeCancion(tipo) || incluyeAlbum(tipo);
+    }
+
+    private boolean incluyeCancion(String tipo) {
+        return TIPO_CANCION.equals(tipo) || esTipoAmbos(tipo);
+    }
+
+    private boolean incluyeAlbum(String tipo) {
+        return TIPO_ALBUM.equals(tipo) || esTipoAmbos(tipo);
+    }
+
+    private boolean esTipoAmbos(String tipo) {
+        return TIPO_AMBOS.equals(tipo);
+    }
+
+    private RecomendacionesResponseDTO construirRespuestaSinPreferencias(Long idUsuario) {
+        return RecomendacionesResponseDTO.builder()
+                .idUsuario(idUsuario)
+                .totalRecomendaciones(0)
+                .canciones(new ArrayList<>())
+                .albumes(new ArrayList<>())
+                .build();
     }
 }
