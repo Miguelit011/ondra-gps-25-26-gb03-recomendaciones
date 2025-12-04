@@ -4,8 +4,8 @@ import com.ondra.recomendaciones.dto.RecomendacionesResponseDTO;
 import com.ondra.recomendaciones.exceptions.ForbiddenAccessException;
 import com.ondra.recomendaciones.services.RecomendacionesService;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,10 +18,10 @@ import org.springframework.web.bind.annotation.*;
 @Slf4j
 @RestController
 @RequestMapping("/artistas/recomendaciones")
+@RequiredArgsConstructor
 public class RecomendacionesArtistaController {
 
-    @Autowired
-    private RecomendacionesService recomendacionesService;
+    private final RecomendacionesService recomendacionesService;
 
     /**
      * Obtiene recomendaciones personalizadas para el artista autenticado.
