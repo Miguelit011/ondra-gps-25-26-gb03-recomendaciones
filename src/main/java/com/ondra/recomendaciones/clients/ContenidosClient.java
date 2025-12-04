@@ -23,7 +23,6 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class ContenidosClient {
 
-    private static final String GENEROS_PATH = "/generos/";
     private static final String EXISTE_SUFFIX = "/existe";
     private static final String NOMBRE_SUFFIX = "/nombre";
     private static final String CANCIONES_PATH = "/canciones";
@@ -31,8 +30,6 @@ public class ContenidosClient {
     private static final String ARTIST_SEGMENT = "/artist/";
     private static final String GENRE_QUERY = "genreId=";
     private static final String LIMIT_PARAM = "&limit=";
-    private static final String COMPRAS_USUARIO_PATH = "/compras?idUsuario=";
-    private static final String FAVORITOS_USUARIO_PATH = "/favoritos?idUsuario=";
     private static final String TIPO_CANCION_LIMIT = "&tipo=CANCION&limit=1000";
     private static final String TIPO_ALBUM_LIMIT = "&tipo=ALBUM&limit=1000";
     private static final String COMPRAS_KEY = "compras";
@@ -52,6 +49,15 @@ public class ContenidosClient {
 
     @Value("${microservices.contenidos.url}")
     private String contenidosUrl;
+
+    @Value("${microservices.contenidos.paths.generos:/generos/}")
+    private String generosPath;
+
+    @Value("${microservices.contenidos.paths.compras:/compras?idUsuario=}")
+    private String comprasUsuarioPath;
+
+    @Value("${microservices.contenidos.paths.favoritos:/favoritos?idUsuario=}")
+    private String favoritosUsuarioPath;
 
     public boolean existeGenero(Long idGenero) {
         try {
@@ -368,7 +374,7 @@ public class ContenidosClient {
     }
 
     private String buildGeneroUrl(Long idGenero) {
-        return contenidosUrl + GENEROS_PATH + idGenero;
+        return contenidosUrl + generosPath + idGenero;
     }
 
     private String buildGeneroExisteUrl(Long idGenero) {
@@ -396,11 +402,11 @@ public class ContenidosClient {
     }
 
     private String buildComprasUrl(Long idUsuario, String tipoLimit) {
-        return contenidosUrl + COMPRAS_USUARIO_PATH + idUsuario + tipoLimit;
+        return contenidosUrl + comprasUsuarioPath + idUsuario + tipoLimit;
     }
 
     private String buildFavoritosUrl(Long idUsuario, String tipoLimit) {
-        return contenidosUrl + FAVORITOS_USUARIO_PATH + idUsuario + tipoLimit;
+        return contenidosUrl + favoritosUsuarioPath + idUsuario + tipoLimit;
     }
 
     @SuppressWarnings(UNCHECKED)
