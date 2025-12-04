@@ -15,7 +15,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
@@ -73,7 +72,7 @@ class RecomendacionesArtistaControllerTest {
     void obtenerRecomendacionesArtista_Success() throws Exception {
         String token = testJwtHelper.generarTokenPruebaArtista(2L, 10L, "artista@example.com");
 
-        when(recomendacionesService.obtenerRecomendaciones(eq(2L), eq(10L), eq("cancion"), eq(5)))
+        when(recomendacionesService.obtenerRecomendaciones(2L, 10L, "cancion", 5))
                 .thenReturn(recomendacionesArtista);
 
         mockMvc.perform(get("/api/artistas/recomendaciones")
@@ -109,7 +108,7 @@ class RecomendacionesArtistaControllerTest {
     void obtenerRecomendacionesArtista_LimiteInvalido() throws Exception {
         String token = testJwtHelper.generarTokenPruebaArtista(2L, 10L, "artista@example.com");
 
-        when(recomendacionesService.obtenerRecomendaciones(eq(2L), eq(10L), eq("album"), eq(0)))
+        when(recomendacionesService.obtenerRecomendaciones(2L, 10L, "album", 0))
                 .thenThrow(new InvalidParameterException("Limite invalido"));
 
         mockMvc.perform(get("/api/artistas/recomendaciones")
