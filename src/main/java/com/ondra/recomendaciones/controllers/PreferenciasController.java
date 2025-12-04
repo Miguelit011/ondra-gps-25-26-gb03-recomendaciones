@@ -7,7 +7,6 @@ import com.ondra.recomendaciones.services.PreferenciasService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -25,8 +24,14 @@ import java.util.List;
 @RequestMapping("/usuarios")
 public class PreferenciasController {
 
-    @Autowired
-    private PreferenciasService preferenciasService;
+    private static final String ATTR_USER_ID = "userId";
+    private static final String ATTR_SERVICE_REQUEST = "isServiceRequest";
+
+    private final PreferenciasService preferenciasService;
+
+    public PreferenciasController(PreferenciasService preferenciasService) {
+        this.preferenciasService = preferenciasService;
+    }
 
     /**
      * Obtiene las preferencias de géneros musicales de un usuario.
@@ -59,8 +64,8 @@ public class PreferenciasController {
     ) {
         log.info("➕ POST /api/usuarios/{}/preferencias - Body: {}", id, dto);
 
-        Long idUsuarioAutenticado = (Long) request.getAttribute("userId");
-        boolean isServiceRequest = Boolean.TRUE.equals(request.getAttribute("isServiceRequest"));
+        Long idUsuarioAutenticado = (Long) request.getAttribute(ATTR_USER_ID);
+        boolean isServiceRequest = Boolean.TRUE.equals(request.getAttribute(ATTR_SERVICE_REQUEST));
 
         log.debug("🔐 Usuario autenticado: {}, Service request: {}", idUsuarioAutenticado, isServiceRequest);
 
@@ -84,8 +89,8 @@ public class PreferenciasController {
     ) {
         log.info("🗑️ DELETE /api/usuarios/{}/preferencias", id);
 
-        Long idUsuarioAutenticado = (Long) request.getAttribute("userId");
-        boolean isServiceRequest = Boolean.TRUE.equals(request.getAttribute("isServiceRequest"));
+        Long idUsuarioAutenticado = (Long) request.getAttribute(ATTR_USER_ID);
+        boolean isServiceRequest = Boolean.TRUE.equals(request.getAttribute(ATTR_SERVICE_REQUEST));
 
         preferenciasService.verificarPropietario(idUsuarioAutenticado, id, isServiceRequest);
 
@@ -109,8 +114,8 @@ public class PreferenciasController {
     ) {
         log.info("🗑️ DELETE /api/usuarios/{}/preferencias/{}", id, idGenero);
 
-        Long idUsuarioAutenticado = (Long) request.getAttribute("userId");
-        boolean isServiceRequest = Boolean.TRUE.equals(request.getAttribute("isServiceRequest"));
+        Long idUsuarioAutenticado = (Long) request.getAttribute(ATTR_USER_ID);
+        boolean isServiceRequest = Boolean.TRUE.equals(request.getAttribute(ATTR_SERVICE_REQUEST));
 
         preferenciasService.verificarPropietario(idUsuarioAutenticado, id, isServiceRequest);
 
