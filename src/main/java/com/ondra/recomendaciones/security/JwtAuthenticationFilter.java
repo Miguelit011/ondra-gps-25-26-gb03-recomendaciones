@@ -38,6 +38,11 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+    private static final String CLAIM_USER_ID = "userId";
+    private static final String CLAIM_EMAIL = "email";
+    private static final String CLAIM_TIPO_USUARIO = "tipoUsuario";
+    private static final String CLAIM_ARTIST_ID = "artistId";
+
     @Value("${jwt.secret}")
     private String secretKey;
 
@@ -87,10 +92,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (token != null && validateToken(token)) {
                 Claims claims = extractAllClaims(token);
 
-                Long userId = claims.get("userId", Long.class);
-                String email = claims.get("email", String.class);
-                String tipoUsuario = claims.get("tipoUsuario", String.class);
-                Object artistIdObj = claims.get("artistId");
+                Long userId = claims.get(CLAIM_USER_ID, Long.class);
+                String email = claims.get(CLAIM_EMAIL, String.class);
+                String tipoUsuario = claims.get(CLAIM_TIPO_USUARIO, String.class);
+                Object artistIdObj = claims.get(CLAIM_ARTIST_ID);
 
                 if (userId == null) {
                     log.warn("⚠️ Token JWT sin userId");
@@ -107,14 +112,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         );
 
                 Map<String, Object> additionalDetails = new HashMap<>();
-                additionalDetails.put("userId", userId);
-                additionalDetails.put("email", email);
-                additionalDetails.put("tipoUsuario", tipoUsuario);
+                additionalDetails.put(CLAIM_USER_ID, userId);
+                additionalDetails.put(CLAIM_EMAIL, email);
+                additionalDetails.put(CLAIM_TIPO_USUARIO, tipoUsuario);
 
                 if (artistIdObj != null) {
                     Long artistId = Long.valueOf(String.valueOf(artistIdObj));
-                    additionalDetails.put("artistId", artistId);
-                    request.setAttribute("artistId", artistId);
+                    additionalDetails.put(CLAIM_ARTIST_ID, artistId);
+                    request.setAttribute(CLAIM_ARTIST_ID, artistId);
                     log.debug("✅ Usuario {} autenticado (tipo: {}, artistId: {})",
                             userId, tipoUsuario, artistId);
                 } else {
@@ -124,9 +129,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 authentication.setDetails(additionalDetails);
                 SecurityContextHolder.getContext().setAuthentication(authentication);
 
-                request.setAttribute("userId", userId);
-                request.setAttribute("email", email);
-                request.setAttribute("tipoUsuario", tipoUsuario);
+                request.setAttribute(CLAIM_USER_ID, userId);
+                request.setAttribute(CLAIM_EMAIL, email);
+                request.setAttribute(CLAIM_TIPO_USUARIO, tipoUsuario);
 
             } else if (token == null) {
                 log.debug("⚠️ No se encontró token JWT en la petición");
